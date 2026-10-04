@@ -1,0 +1,61 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to mailroom",
+        "description": "Enter the address of the mailroom dashboard, including any base path. For example: {example_url}",
+        "data": {
+          "url": "URL"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Enter an http:// or https:// URL without a query string.",
+      "cannot_connect": "Unable to connect to mailroom at that address.",
+      "invalid_response": "Something answered at that address, but it does not look like mailroom."
+    },
+    "abort": {
+      "already_configured": "This mailroom instance is already configured."
+    }
+  },
+  "entity": {
+    "event": {
+      "parcel": {
+        "name": "Parcel update",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "scheduled": "Scheduled",
+              "on_its_way": "On its way",
+              "out_for_delivery": "Out for delivery",
+              "delivered": "Delivered",
+              "returned": "Returned",
+              "problem": "Problem",
+              "unknown": "Unknown"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "in_transit": {
+        "name": "In transit"
+      },
+      "out_for_delivery": {
+        "name": "Out for delivery"
+      },
+      "arriving_today": {
+        "name": "Arriving today"
+      },
+      "overdue": {
+        "name": "Overdue"
+      },
+      "delivered": {
+        "name": "Delivered"
+      },
+      "total": {
+        "name": "Total parcels"
+      }
+    }
+  }
+}

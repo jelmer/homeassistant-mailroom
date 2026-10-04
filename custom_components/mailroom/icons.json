@@ -1,0 +1,29 @@
+{
+  "entity": {
+    "event": {
+      "parcel": {
+        "default": "mdi:package-variant"
+      }
+    },
+    "sensor": {
+      "in_transit": {
+        "default": "mdi:truck-fast"
+      },
+      "out_for_delivery": {
+        "default": "mdi:truck-delivery"
+      },
+      "arriving_today": {
+        "default": "mdi:calendar-today"
+      },
+      "overdue": {
+        "default": "mdi:clock-alert-outline"
+      },
+      "delivered": {
+        "default": "mdi:package-variant-closed-check"
+      },
+      "total": {
+        "default": "mdi:package-variant-closed"
+      }
+    }
+  }
+}
