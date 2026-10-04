@@ -81,7 +81,9 @@ needed when more than one mailroom is set up.
 The action's form offers the carriers mailroom's own form does, and takes
 any other id as typed.
 DPD and PostNL need the postcode to look a parcel up. Adding a tracking
-number mailroom already has is refused rather than replacing the record.
+number mailroom already has is refused rather than replacing the record;
+that needs a mailroom that honours `If-None-Match` to be watertight
+against mailsift filing the same parcel at the same moment.
 
 `refresh_parcel` returns mailroom's `outcome` (`updated`, `unchanged`,
 `no_record`, `no_carrier`, `carrier_not_configured` or `postcode_required`)

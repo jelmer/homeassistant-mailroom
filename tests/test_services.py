@@ -34,6 +34,40 @@ def _writes(aioclient_mock: AiohttpClientMocker) -> list[tuple[str, URL, Any]]:
     ]
 
 
+async def test_add_parcel_asks_mailroom_not_to_replace_a_record(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    aioclient_mock.get(NEW9_URL, status=404)
+    aioclient_mock.put(NEW9_URL, status=201, json={})
+
+    await hass.services.async_call(
+        DOMAIN, "add_parcel", {"tracking_number": "NEW9"}, blocking=True
+    )
+
+    assert [
+        headers
+        for method, _url, _body, headers in aioclient_mock.mock_calls
+        if method == "PUT"
+    ] == [{"If-None-Match": "*"}]
+
+
+async def test_add_parcel_reports_a_record_filed_in_the_meantime(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    # Not there when looked for, but there by the time of the write.
+    aioclient_mock.get(NEW9_URL, status=404)
+    aioclient_mock.put(NEW9_URL, status=412, json={"error": "parcel already exists"})
+
+    with pytest.raises(ServiceValidationError, match="already has a parcel NEW9"):
+        await hass.services.async_call(
+            DOMAIN, "add_parcel", {"tracking_number": "NEW9"}, blocking=True
+        )
+
+
 async def test_add_parcel_files_a_record_and_refreshes(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

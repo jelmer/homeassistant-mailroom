@@ -32,6 +32,10 @@ class MailroomNotFoundError(MailroomResponseError):
     """Raised when mailroom has nothing at the address asked for."""
 
 
+class MailroomPreconditionFailedError(MailroomResponseError):
+    """Raised when mailroom refuses a request because its condition is not met."""
+
+
 class MailroomParcelExistsError(MailroomError):
     """Raised when adding a parcel mailroom already has a record for."""
 
@@ -231,15 +235,24 @@ class MailroomClient:
         Raises MailroomParcelExistsError rather than replace a record.
         """
         url = self._parcel_url(tracking_number)
-        # mailroom's PUT replaces a record wholesale, history included.
+        exists = MailroomParcelExistsError(
+            f"mailroom already has a parcel {tracking_number}"
+        )
+        # A plain PUT replaces a record wholesale, history included, and a
+        # mailroom from before it understood If-None-Match treats this one as
+        # plain. Looking first keeps that from costing a record.
+        # TODO(jelmer): Drop the look once no such mailroom is around.
         if await self._exists(url):
-            raise MailroomParcelExistsError(
-                f"mailroom already has a parcel {tracking_number}"
-            )
+            raise exists
         document = _new_parcel(
             tracking_number, carrier, description, postcode, datetime.now(UTC)
         )
-        await self._request("PUT", url, json=document)
+        try:
+            await self._request(
+                "PUT", url, json=document, headers={"If-None-Match": "*"}
+            )
+        except MailroomPreconditionFailedError as err:
+            raise exists from err
 
     async def remove_parcel(self, tracking_number: str) -> None:
         """Delete a parcel's record. Raises MailroomNotFoundError if absent."""
@@ -278,14 +291,24 @@ class MailroomClient:
                 f"{url} returned an unexpected document: {err!r}"
             ) from err
 
-    async def _request(self, method: str, url: URL, json: Any = None) -> Any:
+    async def _request(
+        self,
+        method: str,
+        url: URL,
+        json: Any = None,
+        headers: dict[str, str] | None = None,
+    ) -> Any:
         """Return the decoded body, or None where mailroom sends none."""
         try:
             async with self._session.request(
-                method, url, json=json, timeout=REQUEST_TIMEOUT
+                method, url, json=json, headers=headers, timeout=REQUEST_TIMEOUT
             ) as response:
                 if response.status == HTTPStatus.NOT_FOUND:
                     raise MailroomNotFoundError(f"{url} was not found")
+                if response.status == HTTPStatus.PRECONDITION_FAILED:
+                    raise MailroomPreconditionFailedError(
+                        f"{url} did not meet the request's condition"
+                    )
                 if response.status == HTTPStatus.NO_CONTENT:
                     return None
                 if response.status not in (HTTPStatus.OK, HTTPStatus.CREATED):
