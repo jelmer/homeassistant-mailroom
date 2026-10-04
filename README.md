@@ -54,6 +54,15 @@ fire. The status last reported for each parcel is stored, so a change that
 happens while Home Assistant is not running fires on the first poll after
 it has started, which can be up to five minutes later.
 
+For notifications on a phone running the Home Assistant app there is a
+blueprint: pick the statuses to hear about and the device to notify.
+[Import it](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fjelmer%2Fhomeassistant-mailroom%2Fblob%2Fmaster%2Fblueprints%2Fautomation%2Fmailroom%2Fparcel_notification.yaml),
+or use the URL of
+`blueprints/automation/mailroom/parcel_notification.yaml` in this
+repository under Settings > Automations & scenes > Blueprints.
+
+For anything else, trigger on the entity yourself:
+
     automation:
       - alias: Announce parcels that are out for delivery
         triggers:

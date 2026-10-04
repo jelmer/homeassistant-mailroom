@@ -1,0 +1,80 @@
+blueprint:
+  name: Mailroom parcel notification
+  description: Send a notification to a device when a parcel reaches one of the chosen statuses.
+  domain: automation
+  source_url: https://github.com/jelmer/homeassistant-mailroom/blob/master/blueprints/automation/mailroom/parcel_notification.yaml
+  author: Jelmer Vernooĳ
+  input:
+    parcel_event:
+      name: Parcel updates
+      description: The "Parcel update" entity of the mailroom to watch.
+      selector:
+        entity:
+          filter:
+            integration: mailroom
+            domain: event
+    statuses:
+      name: Statuses
+      description: The statuses to send a notification for.
+      default:
+        - out_for_delivery
+        - delivered
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Scheduled
+              value: scheduled
+            - label: On its way
+              value: on_its_way
+            - label: Out for delivery
+              value: out_for_delivery
+            - label: Delivered
+              value: delivered
+            - label: Returned
+              value: returned
+            - label: Problem
+              value: problem
+            - label: Unknown
+              value: unknown
+    notify_device:
+      name: Device to notify
+      description: Device needs to run the official Home Assistant app to receive notifications.
+      selector:
+        device:
+          filter:
+            integration: mobile_app
+
+# Several parcels can change in the same poll, each firing in turn.
+mode: queued
+max: 20
+
+triggers:
+  trigger: state
+  entity_id: !input parcel_event
+  not_from: unavailable
+  not_to: unavailable
+
+variables:
+  statuses: !input statuses
+  status: "{{ trigger.to_state.attributes.event_type }}"
+  phrases:
+    scheduled: is scheduled
+    on_its_way: is on its way
+    out_for_delivery: is out for delivery
+    delivered: has been delivered
+    returned: has been returned
+    problem: has run into a problem
+    unknown: has gone quiet
+
+conditions:
+  condition: template
+  value_template: "{{ status in statuses }}"
+
+actions:
+  - alias: Notify about the parcel
+    domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: "{{ trigger.to_state.attributes.description or trigger.to_state.attributes.tracking_number }}"
+    message: "Your parcel with {{ trigger.to_state.attributes.carrier }} {{ phrases[status] }}."
