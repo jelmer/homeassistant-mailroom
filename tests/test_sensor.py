@@ -48,6 +48,7 @@ def the_day_tq1_is_due(freezer: FrozenDateTimeFactory) -> None:
         ("sensor.mailroom_arriving_today", "1", [TQ1]),
         ("sensor.mailroom_overdue", "1", [JD2]),
         ("sensor.mailroom_problem", "0", []),
+        ("sensor.mailroom_status_unknown", "0", []),
     ],
 )
 async def test_parcel_list_sensors(
@@ -130,6 +131,41 @@ async def test_problem_counts_parcels_the_carrier_is_stuck_on(
     assert state is not None
     assert state.state == "1"
     assert [p["tracking_number"] for p in state.attributes["parcels"]] == ["JD2"]
+
+
+async def test_a_parcel_of_unknown_status_only_counts_as_that(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    tick: Callable[[], Awaitable[None]],
+    config_entry: MockConfigEntry,
+) -> None:
+    # What mailroom makes of a parcel that went quiet: still current, and
+    # still overdue against the date it was once promised for.
+    stale = parcel_json("OLD7", "Unknown", expected_arrival="2026-10-04", overdue=True)
+    mock_api(aioclient_mock, {"current": [stale], "previous": []})
+
+    await tick()
+
+    counts = {}
+    for key in (
+        "in_transit",
+        "out_for_delivery",
+        "arriving_today",
+        "overdue",
+        "problem",
+        "status_unknown",
+    ):
+        state = hass.states.get(f"sensor.mailroom_{key}")
+        assert state is not None
+        counts[key] = state.state
+    assert counts == {
+        "in_transit": "0",
+        "out_for_delivery": "0",
+        "arriving_today": "0",
+        "overdue": "0",
+        "problem": "0",
+        "status_unknown": "1",
+    }
 
 
 async def test_sensors_follow_mailroom(

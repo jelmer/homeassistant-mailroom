@@ -42,15 +42,31 @@ def _with_status(status: DeliveryStatus) -> Callable[[Parcels], list[Parcel]]:
     ]
 
 
+def _in_transit(parcels: Parcels) -> list[Parcel]:
+    """Parcels on their way whose status mailroom still vouches for.
+
+    mailroom reports a parcel as unknown once it has gone without news for
+    long enough. Such a parcel never leaves `current`, so counting it would
+    keep these sensors above zero for good.
+    """
+    return [
+        parcel
+        for parcel in parcels.current
+        if parcel.status is not DeliveryStatus.UNKNOWN
+    ]
+
+
 def _arriving_today(parcels: Parcels) -> list[Parcel]:
     today = dt_util.now().date()
-    return [parcel for parcel in parcels.current if parcel.expected_arrival == today]
+    return [
+        parcel for parcel in _in_transit(parcels) if parcel.expected_arrival == today
+    ]
 
 
 PARCEL_LIST_SENSORS = (
     ParcelListSensorDescription(
         key="in_transit",
-        parcels_fn=lambda parcels: parcels.current,
+        parcels_fn=_in_transit,
     ),
     ParcelListSensorDescription(
         key="out_for_delivery",
@@ -63,12 +79,16 @@ PARCEL_LIST_SENSORS = (
     ParcelListSensorDescription(
         key="overdue",
         parcels_fn=lambda parcels: [
-            parcel for parcel in parcels.current if parcel.overdue
+            parcel for parcel in _in_transit(parcels) if parcel.overdue
         ],
     ),
     ParcelListSensorDescription(
         key="problem",
         parcels_fn=_with_status(DeliveryStatus.PROBLEM),
+    ),
+    ParcelListSensorDescription(
+        key="unknown",
+        parcels_fn=_with_status(DeliveryStatus.UNKNOWN),
     ),
 )
 

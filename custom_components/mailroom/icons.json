@@ -21,6 +21,9 @@
       "problem": {
         "default": "mdi:alert-circle-outline"
       },
+      "unknown": {
+        "default": "mdi:help-circle-outline"
+      },
       "delivered": {
         "default": "mdi:package-variant-closed-check"
       },

@@ -13,22 +13,25 @@ changes status. Actions add, refresh and remove parcels.
 
 | Entity | What |
 | --- | --- |
-| In transit | Parcels that have not been delivered or returned |
+| In transit | Parcels on their way: not delivered, returned or of unknown status |
 | Out for delivery | Parcels in transit that are out for delivery |
 | Arriving today | Parcels in transit whose expected arrival date is today |
 | Overdue | Parcels in transit whose expected arrival date has passed |
 | Problem | Parcels in transit that the carrier reports a problem with |
+| Status unknown | Parcels mailroom has no trustworthy status for |
 | Delivered | Delivered parcels, over every record mailroom has |
 | Total parcels | Every record mailroom has |
 | Parcel update | Event entity; fires when a parcel appears or changes status |
 
-The first five sensors list the parcels they count in a `parcels`
+The first six sensors list the parcels they count in a `parcels`
 attribute, each with its tracking number, status, carrier, description,
 merchant, tracking URL and expected arrival date. That attribute is kept
 out of the recorder.
 
-"In transit" counts the same parcels as the dashboard does, so it includes
-ones mailroom has given up on and shows as `Unknown`.
+mailroom shows a parcel as `Unknown` once it has gone a long time without
+news, and such a parcel never leaves its "in transit" list. Here those are
+counted under "Status unknown" only, so the other sensors can get back to
+zero.
 
 The statuses are mailroom's own: `scheduled`, `on_its_way`,
 `out_for_delivery`, `delivered`, `returned`, `problem` and `unknown`.
