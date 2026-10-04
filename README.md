@@ -40,8 +40,10 @@ The event type of `event.mailroom_parcel_update` is the status the parcel
 moved to. The parcel's details are attributes of the event, along with
 `previous_status`, which is empty for a parcel that was not there before.
 
-Parcels already known when Home Assistant starts do not fire, and neither
-do changes that happened while it was not running.
+Parcels that are already there when the integration is first set up do not
+fire. The status last reported for each parcel is stored, so a change that
+happens while Home Assistant is not running fires on the first poll after
+it has started, which can be up to five minutes later.
 
     automation:
       - alias: Announce parcels that are out for delivery

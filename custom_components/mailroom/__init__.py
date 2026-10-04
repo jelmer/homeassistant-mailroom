@@ -8,6 +8,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import MailroomClient
 from .coordinator import MailroomConfigEntry, MailroomCoordinator
+from .event import status_store
 
 PLATFORMS: list[Platform] = [Platform.EVENT, Platform.SENSOR]
 
@@ -27,3 +28,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MailroomConfigEntry) -> 
 async def async_unload_entry(hass: HomeAssistant, entry: MailroomConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: MailroomConfigEntry) -> None:
+    """Forget what was stored for a removed entry."""
+    await status_store(hass, entry).async_remove()

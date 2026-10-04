@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Generator
+from typing import Any
 
 import pytest
 from freezegun.api import FrozenDateTimeFactory
@@ -16,7 +17,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.mailroom.const import DOMAIN, UPDATE_INTERVAL
 
-from . import BASE_URL, mock_api
+from . import BASE_URL, ENTRY_ID, mock_api
 
 
 @pytest.fixture(autouse=True)
@@ -27,13 +28,20 @@ def auto_enable_custom_integrations(
     yield
 
 
+@pytest.fixture(autouse=True)
+def in_memory_storage(hass_storage: dict[str, Any]) -> None:
+    """Keep what the integration stores out of the real config directory."""
+
+
 @pytest.fixture
 async def config_entry(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> MockConfigEntry:
     """A mailroom entry, set up against the canned documents."""
     mock_api(aioclient_mock)
-    entry = MockConfigEntry(domain=DOMAIN, title="Mailroom", data={CONF_URL: BASE_URL})
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Mailroom", data={CONF_URL: BASE_URL}, entry_id=ENTRY_ID
+    )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()

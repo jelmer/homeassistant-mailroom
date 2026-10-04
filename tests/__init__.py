@@ -7,6 +7,7 @@ from typing import Any
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 BASE_URL = "http://mailroom.test:8080"
+ENTRY_ID = "mailroom_test"
 
 
 def parcel_json(tracking_number: str, status: str, **fields: Any) -> dict[str, Any]:

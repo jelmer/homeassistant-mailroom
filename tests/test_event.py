@@ -7,12 +7,18 @@ from typing import Any
 
 import pytest
 from homeassistant.const import STATE_UNKNOWN
-from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.core import (
+    CoreState,
+    Event,
+    EventStateChangedData,
+    HomeAssistant,
+    callback,
+)
 from homeassistant.helpers.event import async_track_state_change_event
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
-from . import BASE_URL, PARCELS, mock_api, parcel_json
+from . import BASE_URL, ENTRY_ID, PARCELS, mock_api, parcel_json
 
 ENTITY_ID = "event.mailroom_parcel_update"
 
@@ -214,3 +220,107 @@ async def test_an_outage_does_not_repeat_or_lose_events(
             "previous_status": "out_for_delivery",
         },
     ]
+
+
+STORAGE_KEY = f"mailroom.{ENTRY_ID}"
+AT_SETUP = {"JD2": "on_its_way", "TQ1": "out_for_delivery", "3S3": "delivered"}
+
+
+async def test_reported_statuses_are_stored(
+    hass_storage: dict[str, Any],
+    aioclient_mock: AiohttpClientMocker,
+    tick: Callable[[], Awaitable[None]],
+    fired: list[dict[str, Any]],
+) -> None:
+    await tick()
+
+    assert hass_storage[STORAGE_KEY]["data"] == AT_SETUP
+
+    mock_api(
+        aioclient_mock,
+        {"current": [parcel_json("JD2", "Problem")], "previous": []},
+    )
+    await tick()
+    await tick()
+
+    assert hass_storage[STORAGE_KEY]["data"] == {"JD2": "problem"}
+
+
+@pytest.fixture
+def stored_before_shutdown(hass_storage: dict[str, Any]) -> None:
+    """What an earlier run knew: TQ1 on its way, and no sign of JD2."""
+    hass_storage[STORAGE_KEY] = {
+        "version": 1,
+        "minor_version": 1,
+        "key": STORAGE_KEY,
+        "data": {"TQ1": "on_its_way", "3S3": "delivered", "OLD7": "delivered"},
+    }
+
+
+async def test_changes_made_while_home_assistant_was_down_fire_on_the_next_poll(
+    hass: HomeAssistant,
+    stored_before_shutdown: None,
+    tick: Callable[[], Awaitable[None]],
+    fired: list[dict[str, Any]],
+) -> None:
+    state = hass.states.get(ENTITY_ID)
+    assert state is not None
+    assert state.state == STATE_UNKNOWN
+
+    await tick()
+
+    assert fired == [
+        {
+            "event_type": "on_its_way",
+            "tracking_number": "JD2",
+            "previous_status": None,
+        },
+        {
+            "event_type": "out_for_delivery",
+            "tracking_number": "TQ1",
+            "previous_status": "on_its_way",
+        },
+    ]
+
+
+async def test_changes_wait_until_home_assistant_has_started(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    tick: Callable[[], Awaitable[None]],
+    fired: list[dict[str, Any]],
+) -> None:
+    mock_api(
+        aioclient_mock,
+        {"current": [parcel_json("JD2", "Problem")], "previous": []},
+    )
+    hass.set_state(CoreState.starting)
+
+    await tick()
+
+    assert fired == []
+
+    hass.set_state(CoreState.running)
+    await tick()
+
+    assert fired == [
+        {
+            "event_type": "problem",
+            "tracking_number": "JD2",
+            "previous_status": "on_its_way",
+        }
+    ]
+
+
+async def test_removing_the_entry_forgets_the_stored_statuses(
+    hass: HomeAssistant,
+    hass_storage: dict[str, Any],
+    tick: Callable[[], Awaitable[None]],
+    config_entry: MockConfigEntry,
+) -> None:
+    await tick()
+    assert STORAGE_KEY in hass_storage
+
+    assert await hass.config_entries.async_remove(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert STORAGE_KEY not in hass_storage
