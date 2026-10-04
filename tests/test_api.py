@@ -227,7 +227,7 @@ async def test_removing_a_parcel_mailroom_does_not_have(
 ) -> None:
     aioclient_mock.delete(f"{BASE_URL}/api/parcel/TQ1", status=404)
 
-    with pytest.raises(MailroomNotFoundError):
+    with pytest.raises(MailroomNotFoundError, match="^mailroom has no parcel TQ1$"):
         await client.remove_parcel("TQ1")
 
 

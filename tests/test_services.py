@@ -220,7 +220,7 @@ async def test_a_parcel_mailroom_does_not_have_is_a_validation_error(
 ) -> None:
     aioclient_mock.request(method, url, status=404)
 
-    with pytest.raises(ServiceValidationError, match="was not found"):
+    with pytest.raises(ServiceValidationError, match="^mailroom has no parcel NEW9$"):
         await hass.services.async_call(
             DOMAIN, action, {"tracking_number": "NEW9"}, blocking=True
         )

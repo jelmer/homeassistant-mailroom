@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from enum import StrEnum
@@ -151,6 +152,17 @@ def _parse_stats(raw: dict[str, Any]) -> Stats:
     )
 
 
+@contextmanager
+def _missing_parcel(tracking_number: str) -> Generator[None]:
+    """Name the parcel that was not found rather than the URL that was asked."""
+    try:
+        yield
+    except MailroomNotFoundError as err:
+        raise MailroomNotFoundError(
+            f"mailroom has no parcel {tracking_number}"
+        ) from err
+
+
 def _parse_refresh(raw: dict[str, Any]) -> RefreshResult:
     outcome, parcel = raw["outcome"], raw["parcel"]
     if not isinstance(outcome, str) or not isinstance(parcel, dict):
@@ -231,7 +243,9 @@ class MailroomClient:
 
     async def remove_parcel(self, tracking_number: str) -> None:
         """Delete a parcel's record. Raises MailroomNotFoundError if absent."""
-        await self._request("DELETE", self._parcel_url(tracking_number))
+        url = self._parcel_url(tracking_number)
+        with _missing_parcel(tracking_number):
+            await self._request("DELETE", url)
 
     async def refresh_parcel(self, tracking_number: str) -> RefreshResult:
         """Have mailroom ask the carrier about a parcel now.
@@ -239,7 +253,8 @@ class MailroomClient:
         Raises MailroomNotFoundError if mailroom has no such parcel.
         """
         url = self._parcel_url(tracking_number) / "refresh"
-        return await self._fetch("POST", url, _parse_refresh)
+        with _missing_parcel(tracking_number):
+            return await self._fetch("POST", url, _parse_refresh)
 
     def _parcel_url(self, tracking_number: str) -> URL:
         # Anything else could name a different endpoint, e.g. `..`.
