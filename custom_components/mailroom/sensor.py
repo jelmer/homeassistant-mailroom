@@ -83,6 +83,12 @@ PARCEL_LIST_SENSORS = (
         ],
     ),
     ParcelListSensorDescription(
+        key="awaiting_collection",
+        parcels_fn=lambda parcels: [
+            parcel for parcel in parcels.current if parcel.pickup is not None
+        ],
+    ),
+    ParcelListSensorDescription(
         key="problem",
         parcels_fn=_with_status(DeliveryStatus.PROBLEM),
     ),

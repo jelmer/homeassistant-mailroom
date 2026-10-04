@@ -118,6 +118,7 @@ async def test_a_status_change_fires(
         "expected_arrival": "2026-10-04",
         "overdue": False,
         "delivered_at": "2026-10-04T15:00:00+00:00",
+        "pickup": None,
         "previous_status": "out_for_delivery",
     }
 

@@ -23,6 +23,7 @@ def parcel_json(tracking_number: str, status: str, **fields: Any) -> dict[str, A
         "overdue": False,
         "delivered_at": None,
         "last_polled": None,
+        "pickup": None,
         **fields,
     }
 

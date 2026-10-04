@@ -18,6 +18,9 @@
       "overdue": {
         "default": "mdi:clock-alert-outline"
       },
+      "awaiting_collection": {
+        "default": "mdi:locker"
+      },
       "problem": {
         "default": "mdi:alert-circle-outline"
       },

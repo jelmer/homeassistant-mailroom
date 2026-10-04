@@ -11,7 +11,14 @@ from homeassistant.core import HomeAssistant
 from .coordinator import MailroomConfigEntry
 
 # Enough to tell whose parcels these are, and of no use in a bug report.
-TO_REDACT = {"tracking_number", "tracking_url", "description", "merchant"}
+TO_REDACT = {
+    "tracking_number",
+    "tracking_url",
+    "description",
+    "merchant",
+    "location",
+    "code",
+}
 
 
 async def async_get_config_entry_diagnostics(

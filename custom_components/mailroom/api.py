@@ -68,6 +68,16 @@ _STATUS_BY_API_NAME = {
 
 
 @dataclass(frozen=True)
+class Pickup:
+    """Where and until when a parcel can be collected."""
+
+    location: str | None
+    code: str | None
+    available_from: datetime | None
+    available_through: datetime | None
+
+
+@dataclass(frozen=True)
 class Parcel:
     """A parcel as summarised by `/api/parcels`."""
 
@@ -81,6 +91,8 @@ class Parcel:
     overdue: bool
     delivered_at: datetime | None
     last_polled: datetime | None
+    # Set while the parcel is waiting at a locker or parcel shop.
+    pickup: Pickup | None
 
 
 @dataclass(frozen=True)
@@ -127,6 +139,17 @@ def _optional[T](parse: Callable[[str], T], raw: str | None) -> T | None:
     return None if raw is None else parse(raw)
 
 
+def _parse_pickup(raw: dict[str, Any] | None) -> Pickup | None:
+    if raw is None:
+        return None
+    return Pickup(
+        location=raw["location"],
+        code=raw["code"],
+        available_from=_optional(datetime.fromisoformat, raw["available_from"]),
+        available_through=_optional(datetime.fromisoformat, raw["available_through"]),
+    )
+
+
 def _parse_parcel(raw: dict[str, Any]) -> Parcel:
     return Parcel(
         tracking_number=raw["tracking_number"],
@@ -139,6 +162,8 @@ def _parse_parcel(raw: dict[str, Any]) -> Parcel:
         overdue=raw["overdue"],
         delivered_at=_optional(datetime.fromisoformat, raw["delivered_at"]),
         last_polled=_optional(datetime.fromisoformat, raw["last_polled"]),
+        # A mailroom from before it reported pickups leaves the key out.
+        pickup=_parse_pickup(raw.get("pickup")),
     )
 
 

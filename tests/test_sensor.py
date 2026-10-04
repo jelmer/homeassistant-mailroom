@@ -23,6 +23,7 @@ JD2 = {
     "expected_arrival": "2026-10-03",
     "overdue": True,
     "delivered_at": None,
+    "pickup": None,
 }
 TQ1 = {
     "tracking_number": "TQ1",
@@ -34,6 +35,7 @@ TQ1 = {
     "expected_arrival": "2026-10-04",
     "overdue": False,
     "delivered_at": None,
+    "pickup": None,
 }
 S3 = {
     "tracking_number": "3S3",
@@ -45,6 +47,7 @@ S3 = {
     "expected_arrival": None,
     "overdue": False,
     "delivered_at": "2026-10-04T14:28:56+00:00",
+    "pickup": None,
 }
 
 
@@ -60,6 +63,7 @@ def the_day_tq1_is_due(freezer: FrozenDateTimeFactory) -> None:
         ("sensor.mailroom_out_for_delivery", "1", [TQ1]),
         ("sensor.mailroom_arriving_today", "1", [TQ1]),
         ("sensor.mailroom_overdue", "1", [JD2]),
+        ("sensor.mailroom_awaiting_collection", "0", []),
         ("sensor.mailroom_problem", "0", []),
         ("sensor.mailroom_status_unknown", "0", []),
         ("sensor.mailroom_recently_delivered", "1", [S3]),
@@ -202,6 +206,40 @@ async def test_recently_delivered_leaves_out_returned_parcels(
     assert state is not None
     assert state.state == "1"
     assert state.attributes["parcels"] == [S3]
+
+
+async def test_awaiting_collection_lists_where_and_until_when(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    tick: Callable[[], Awaitable[None]],
+    config_entry: MockConfigEntry,
+) -> None:
+    pickup = {
+        "location": "Bruna Amsterdam CS",
+        "code": "O3SXYZ",
+        "available_from": None,
+        "available_through": "2026-10-11T22:00:00+00:00",
+    }
+    mock_api(
+        aioclient_mock,
+        {
+            "current": [
+                parcel_json("3SXYZ", "OutForDelivery", pickup=pickup),
+                parcel_json("TQ1", "OnItsWay"),
+            ],
+            "previous": [],
+        },
+    )
+
+    await tick()
+
+    state = hass.states.get("sensor.mailroom_awaiting_collection")
+    assert state is not None
+    assert state.state == "1"
+    assert [
+        (parcel["tracking_number"], parcel["pickup"])
+        for parcel in state.attributes["parcels"]
+    ] == [("3SXYZ", pickup)]
 
 
 async def test_sensors_follow_mailroom(

@@ -58,6 +58,9 @@
       "overdue": {
         "name": "Overdue"
       },
+      "awaiting_collection": {
+        "name": "Awaiting collection"
+      },
       "problem": {
         "name": "Problem"
       },

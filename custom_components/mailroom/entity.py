@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from homeassistant.const import CONF_URL
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import Parcel
+from .api import Parcel, Pickup
 from .const import DOMAIN
 from .coordinator import MailroomConfigEntry, MailroomCoordinator
 
@@ -32,6 +33,21 @@ class MailroomEntity(CoordinatorEntity[MailroomCoordinator]):
         )
 
 
+def _iso(moment: datetime | None) -> str | None:
+    return None if moment is None else moment.isoformat()
+
+
+def _pickup_attributes(pickup: Pickup | None) -> dict[str, Any] | None:
+    if pickup is None:
+        return None
+    return {
+        "location": pickup.location,
+        "code": pickup.code,
+        "available_from": _iso(pickup.available_from),
+        "available_through": _iso(pickup.available_through),
+    }
+
+
 def parcel_attributes(parcel: Parcel) -> dict[str, Any]:
     """Describe a parcel in a form that fits in state attributes."""
     return {
@@ -47,7 +63,6 @@ def parcel_attributes(parcel: Parcel) -> dict[str, Any]:
             else parcel.expected_arrival.isoformat()
         ),
         "overdue": parcel.overdue,
-        "delivered_at": (
-            None if parcel.delivered_at is None else parcel.delivered_at.isoformat()
-        ),
+        "delivered_at": _iso(parcel.delivered_at),
+        "pickup": _pickup_attributes(parcel.pickup),
     }

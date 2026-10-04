@@ -19,6 +19,7 @@ from custom_components.mailroom.api import (
     MailroomResponseError,
     Parcel,
     Parcels,
+    Pickup,
     RefreshResult,
     Stats,
 )
@@ -52,6 +53,7 @@ async def test_parcels(
                 overdue=True,
                 delivered_at=None,
                 last_polled=None,
+                pickup=None,
             ),
             Parcel(
                 tracking_number="TQ1",
@@ -64,6 +66,7 @@ async def test_parcels(
                 overdue=False,
                 delivered_at=None,
                 last_polled=None,
+                pickup=None,
             ),
         ],
         previous=[
@@ -79,9 +82,51 @@ async def test_parcels(
                 delivered_at=datetime(2026, 10, 4, 14, 28, 56, tzinfo=UTC),
                 # chrono writes nanoseconds; anything past microseconds is cut.
                 last_polled=datetime(2026, 10, 4, 14, 28, 56, 123456, tzinfo=UTC),
+                pickup=None,
             ),
         ],
     )
+
+
+async def test_a_parcel_waiting_to_be_collected(
+    client: MailroomClient, aioclient_mock: AiohttpClientMocker
+) -> None:
+    pickup = {
+        "location": "Bruna Amsterdam CS",
+        "code": "O3SXYZ",
+        "available_from": None,
+        "available_through": "2026-10-11T22:00:00+00:00",
+    }
+    mock_api(
+        aioclient_mock,
+        {
+            "current": [parcel_json("3SXYZ", "OutForDelivery", pickup=pickup)],
+            "previous": [],
+        },
+    )
+
+    parcels = await client.parcels()
+
+    assert [parcel.pickup for parcel in parcels.current] == [
+        Pickup(
+            location="Bruna Amsterdam CS",
+            code="O3SXYZ",
+            available_from=None,
+            available_through=datetime(2026, 10, 11, 22, 0, tzinfo=UTC),
+        )
+    ]
+
+
+async def test_a_mailroom_that_does_not_report_pickups(
+    client: MailroomClient, aioclient_mock: AiohttpClientMocker
+) -> None:
+    parcel = parcel_json("A1", "OnItsWay")
+    del parcel["pickup"]
+    mock_api(aioclient_mock, {"current": [parcel], "previous": []})
+
+    parcels = await client.parcels()
+
+    assert [parcel.pickup for parcel in parcels.current] == [None]
 
 
 async def test_stats(

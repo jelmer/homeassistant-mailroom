@@ -17,6 +17,7 @@ changes status. Actions add, refresh and remove parcels.
 | Out for delivery | Parcels in transit that are out for delivery |
 | Arriving today | Parcels in transit whose expected arrival date is today |
 | Overdue | Parcels in transit whose expected arrival date has passed |
+| Awaiting collection | Parcels waiting at a locker or parcel shop |
 | Problem | Parcels in transit that the carrier reports a problem with |
 | Status unknown | Parcels mailroom has no trustworthy status for |
 | Recently delivered | Delivered parcels mailroom still lists, 90 days by default |
@@ -24,10 +25,15 @@ changes status. Actions add, refresh and remove parcels.
 | Total parcels | Every record mailroom has |
 | Parcel update | Event entity; fires when a parcel appears or changes status |
 
-The first seven sensors list the parcels they count in a `parcels`
+The first eight sensors list the parcels they count in a `parcels`
 attribute, each with its tracking number, status, carrier, description,
 merchant, tracking URL, expected arrival date and delivery time. That
 attribute is kept out of the recorder.
+
+A parcel waiting to be collected also has a `pickup` with its `location`,
+collection `code`, `available_from` and `available_through`. This needs a
+mailroom that reports pickups in `/api/parcels`; with an older one
+"Awaiting collection" stays at zero.
 
 mailroom shows a parcel as `Unknown` once it has gone a long time without
 news, and such a parcel never leaves its "in transit" list. Here those are
