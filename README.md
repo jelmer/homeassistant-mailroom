@@ -90,6 +90,9 @@ that only listens on a unix socket needs a reverse proxy in front of it.
 mailroom has no authentication of its own; if the proxy adds any, this
 integration cannot get past it at the moment.
 
+The diagnostics download for the entry holds what the last poll fetched,
+with tracking numbers, tracking URLs, descriptions and merchants redacted.
+
 ## Development
 
     uv venv
