@@ -50,6 +50,9 @@
       "overdue": {
         "name": "Overdue"
       },
+      "problem": {
+        "name": "Problem"
+      },
       "delivered": {
         "name": "Delivered"
       },

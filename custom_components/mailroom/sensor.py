@@ -36,6 +36,12 @@ class StatsSensorDescription(SensorEntityDescription):
     value_fn: Callable[[Stats], int]
 
 
+def _with_status(status: DeliveryStatus) -> Callable[[Parcels], list[Parcel]]:
+    return lambda parcels: [
+        parcel for parcel in parcels.current if parcel.status is status
+    ]
+
+
 def _arriving_today(parcels: Parcels) -> list[Parcel]:
     today = dt_util.now().date()
     return [parcel for parcel in parcels.current if parcel.expected_arrival == today]
@@ -48,11 +54,7 @@ PARCEL_LIST_SENSORS = (
     ),
     ParcelListSensorDescription(
         key="out_for_delivery",
-        parcels_fn=lambda parcels: [
-            parcel
-            for parcel in parcels.current
-            if parcel.status is DeliveryStatus.OUT_FOR_DELIVERY
-        ],
+        parcels_fn=_with_status(DeliveryStatus.OUT_FOR_DELIVERY),
     ),
     ParcelListSensorDescription(
         key="arriving_today",
@@ -63,6 +65,10 @@ PARCEL_LIST_SENSORS = (
         parcels_fn=lambda parcels: [
             parcel for parcel in parcels.current if parcel.overdue
         ],
+    ),
+    ParcelListSensorDescription(
+        key="problem",
+        parcels_fn=_with_status(DeliveryStatus.PROBLEM),
     ),
 )
 

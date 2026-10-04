@@ -18,6 +18,9 @@
       "overdue": {
         "default": "mdi:clock-alert-outline"
       },
+      "problem": {
+        "default": "mdi:alert-circle-outline"
+      },
       "delivered": {
         "default": "mdi:package-variant-closed-check"
       },

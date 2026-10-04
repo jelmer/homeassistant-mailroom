@@ -18,11 +18,12 @@ still happens in mailroom itself.
 | Out for delivery | Parcels in transit that are out for delivery |
 | Arriving today | Parcels in transit whose expected arrival date is today |
 | Overdue | Parcels in transit whose expected arrival date has passed |
+| Problem | Parcels in transit that the carrier reports a problem with |
 | Delivered | Delivered parcels, over every record mailroom has |
 | Total parcels | Every record mailroom has |
 | Parcel update | Event entity; fires when a parcel appears or changes status |
 
-The first four sensors list the parcels they count in a `parcels`
+The first five sensors list the parcels they count in a `parcels`
 attribute, each with its tracking number, status, carrier, description,
 merchant, tracking URL and expected arrival date. That attribute is kept
 out of the recorder.

@@ -47,6 +47,7 @@ def the_day_tq1_is_due(freezer: FrozenDateTimeFactory) -> None:
         ("sensor.mailroom_out_for_delivery", "1", [TQ1]),
         ("sensor.mailroom_arriving_today", "1", [TQ1]),
         ("sensor.mailroom_overdue", "1", [JD2]),
+        ("sensor.mailroom_problem", "0", []),
     ],
 )
 async def test_parcel_list_sensors(
@@ -107,6 +108,28 @@ async def test_arriving_today_follows_the_configured_time_zone(
     assert state is not None
     assert state.state == "1"
     assert [p["tracking_number"] for p in state.attributes["parcels"]] == ["3S3"]
+
+
+async def test_problem_counts_parcels_the_carrier_is_stuck_on(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    tick: Callable[[], Awaitable[None]],
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_api(
+        aioclient_mock,
+        {
+            "current": [parcel_json("JD2", "Problem"), parcel_json("TQ1", "OnItsWay")],
+            "previous": [parcel_json("3S3", "Returned")],
+        },
+    )
+
+    await tick()
+
+    state = hass.states.get("sensor.mailroom_problem")
+    assert state is not None
+    assert state.state == "1"
+    assert [p["tracking_number"] for p in state.attributes["parcels"]] == ["JD2"]
 
 
 async def test_sensors_follow_mailroom(
