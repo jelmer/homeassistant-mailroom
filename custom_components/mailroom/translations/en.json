@@ -84,7 +84,7 @@
         },
         "carrier": {
           "name": "Carrier",
-          "description": "The id mailroom knows the carrier by, such as dhl, dpd, postnl, royal-mail or ups. Without one mailroom cannot poll the parcel."
+          "description": "The carrier, or the id mailroom knows it by if it is not listed. Without one mailroom cannot poll the parcel."
         },
         "description": {
           "name": "Description",

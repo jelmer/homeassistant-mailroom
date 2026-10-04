@@ -12,7 +12,48 @@ add_parcel:
     carrier:
       example: dhl
       selector:
-        text:
+        # The carriers mailroom's own add-a-parcel form offers. Any other
+        # id is passed on as typed.
+        select:
+          custom_value: true
+          mode: dropdown
+          options:
+            - label: Amazon DE
+              value: amazon-de
+            - label: Amazon ES
+              value: amazon-es
+            - label: Amazon FR
+              value: amazon-fr
+            - label: Amazon IT
+              value: amazon-it
+            - label: Amazon NL
+              value: amazon-nl
+            - label: Amazon UK
+              value: amazon-uk
+            - label: Amazon US
+              value: amazon-us
+            - label: bol.com
+              value: bol
+            - label: DHL
+              value: dhl
+            - label: DPD
+              value: dpd
+            - label: Evri
+              value: evri
+            - label: FedEx
+              value: fedex
+            - label: Parcelforce
+              value: parcelforce
+            - label: PostNL
+              value: postnl
+            - label: Royal Mail
+              value: royal-mail
+            - label: UPS
+              value: ups
+            - label: USPS
+              value: usps
+            - label: Yodel
+              value: yodel
     description:
       example: Bicycle bell
       selector:

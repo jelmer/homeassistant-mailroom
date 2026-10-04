@@ -78,6 +78,8 @@ needed when more than one mailroom is set up.
 `add_parcel` also takes an optional `carrier`, `description` and
 `postcode`. The carrier is the id mailroom knows it by, such as `dhl`,
 `dpd`, `postnl`, `royal-mail` or `ups`; a parcel without one is not polled.
+The action's form offers the carriers mailroom's own form does, and takes
+any other id as typed.
 DPD and PostNL need the postcode to look a parcel up. Adding a tracking
 number mailroom already has is refused rather than replacing the record.
 

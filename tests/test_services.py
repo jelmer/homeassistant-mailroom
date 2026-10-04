@@ -11,6 +11,7 @@ from freezegun.api import FrozenDateTimeFactory
 from homeassistant.const import CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers.service import async_get_all_descriptions
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 from yarl import URL
@@ -293,3 +294,15 @@ async def test_actions_ask_which_mailroom_when_there_are_several(
             {"tracking_number": "TQ1", "config_entry_id": "nonesuch"},
             blocking=True,
         )
+
+
+async def test_add_parcel_offers_carriers_and_takes_others(
+    hass: HomeAssistant, config_entry: MockConfigEntry
+) -> None:
+    descriptions = await async_get_all_descriptions(hass)
+
+    selector = descriptions[DOMAIN]["add_parcel"]["fields"]["carrier"]["selector"]
+    assert selector["select"]["custom_value"] is True
+    assert {"label": "Royal Mail", "value": "royal-mail"} in selector["select"][
+        "options"
+    ]
