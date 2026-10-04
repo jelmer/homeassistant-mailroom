@@ -7,6 +7,13 @@
         "data": {
           "url": "URL"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigure mailroom",
+        "description": "Enter the new address of the mailroom dashboard, including any base path. For example: {example_url}",
+        "data": {
+          "url": "URL"
+        }
       }
     },
     "error": {
@@ -15,7 +22,8 @@
       "invalid_response": "Something answered at that address, but it does not look like mailroom."
     },
     "abort": {
-      "already_configured": "This mailroom instance is already configured."
+      "already_configured": "This mailroom instance is already configured.",
+      "reconfigure_successful": "The mailroom address has been updated."
     }
   },
   "entity": {

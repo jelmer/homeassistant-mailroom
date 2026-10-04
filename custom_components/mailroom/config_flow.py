@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
+    ConfigFlow,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_URL
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from yarl import URL
@@ -13,7 +17,7 @@ from yarl import URL
 from .api import MailroomClient, MailroomConnectionError, MailroomResponseError
 from .const import DOMAIN
 
-STEP_USER_DATA_SCHEMA = vol.Schema({vol.Required(CONF_URL): str})
+URL_SCHEMA = vol.Schema({vol.Required(CONF_URL): str})
 
 
 def normalise_url(raw: str) -> str:
@@ -38,7 +42,19 @@ class MailroomConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Ask for the address of the mailroom dashboard."""
+        return await self._async_step_url("user", user_input)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Point an existing entry at another address."""
+        return await self._async_step_url("reconfigure", user_input)
+
+    async def _async_step_url(
+        self, step_id: str, user_input: dict[str, Any] | None
+    ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
+        reconfiguring = self.source == SOURCE_RECONFIGURE
 
         if user_input is not None:
             try:
@@ -55,15 +71,19 @@ class MailroomConfigFlow(ConfigFlow, domain=DOMAIN):
                 except MailroomResponseError:
                     errors["base"] = "invalid_response"
                 else:
+                    if reconfiguring:
+                        return self.async_update_reload_and_abort(
+                            self._get_reconfigure_entry(), data={CONF_URL: url}
+                        )
                     return self.async_create_entry(
                         title="Mailroom", data={CONF_URL: url}
                     )
+        elif reconfiguring:
+            user_input = dict(self._get_reconfigure_entry().data)
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=self.add_suggested_values_to_schema(
-                STEP_USER_DATA_SCHEMA, user_input
-            ),
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(URL_SCHEMA, user_input),
             errors=errors,
             description_placeholders={"example_url": "http://localhost:8080"},
         )

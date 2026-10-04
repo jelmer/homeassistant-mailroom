@@ -5,6 +5,7 @@ from __future__ import annotations
 import aiohttp
 import pytest
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -113,3 +114,81 @@ async def test_the_same_mailroom_is_not_added_twice(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
+
+
+async def test_reconfigure_points_the_entry_at_another_address(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    new_url = "http://mailroom.test/mailroom"
+    mock_api(aioclient_mock, base_url=new_url)
+
+    result = await config_entry.start_reconfigure_flow(hass)
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+    schema = result["data_schema"]
+    assert schema is not None
+    [url_field] = schema.schema
+    assert url_field.description == {"suggested_value": BASE_URL}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_URL: f"{new_url}/"}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert config_entry.data == {CONF_URL: new_url}
+    assert config_entry.state is ConfigEntryState.LOADED
+
+
+async def test_reconfigure_keeps_the_entry_when_the_new_address_fails(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    aioclient_mock.get("http://elsewhere.test/api/stats", status=404)
+
+    result = await config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_URL: "http://elsewhere.test"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+    assert result["errors"] == {"base": "invalid_response"}
+    assert config_entry.data == {CONF_URL: BASE_URL}
+
+
+async def test_reconfigure_accepts_the_address_it_already_has(
+    hass: HomeAssistant, config_entry: MockConfigEntry
+) -> None:
+    result = await config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_URL: BASE_URL}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+
+
+async def test_reconfigure_refuses_the_address_of_another_entry(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+) -> None:
+    other_url = "http://other.test"
+    other = MockConfigEntry(domain=DOMAIN, title="Mailroom", data={CONF_URL: other_url})
+    other.add_to_hass(hass)
+
+    result = await config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_URL: other_url}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert config_entry.data == {CONF_URL: BASE_URL}

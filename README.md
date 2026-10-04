@@ -82,7 +82,8 @@ restart Home Assistant.
 
 Go to Settings > Devices & Services > Add Integration, search for
 "Mailroom" and enter the URL of the dashboard, e.g. `http://localhost:8080`.
-Include the base path if mailroom is mounted under one.
+Include the base path if mailroom is mounted under one. If mailroom moves,
+"Reconfigure" on the integration's entry changes the URL in place.
 
 Home Assistant has to be able to reach mailroom over HTTP, so a mailroom
 that only listens on a unix socket needs a reverse proxy in front of it.
