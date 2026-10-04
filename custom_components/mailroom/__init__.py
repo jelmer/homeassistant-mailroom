@@ -9,6 +9,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
 from .api import MailroomClient
+from .card import async_register_card, async_serve_card, async_unregister_card
 from .const import DOMAIN
 from .coordinator import MailroomConfigEntry, MailroomCoordinator
 from .event import status_store
@@ -20,8 +21,9 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the mailroom actions."""
+    """Set up the mailroom actions and dashboard card."""
     async_setup_services(hass)
+    await async_serve_card(hass)
     return True
 
 
@@ -33,6 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MailroomConfigEntry) -> 
 
     entry.runtime_data = coordinator
 
+    await async_register_card(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -45,3 +48,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: MailroomConfigEntry) ->
 async def async_remove_entry(hass: HomeAssistant, entry: MailroomConfigEntry) -> None:
     """Forget what was stored for a removed entry."""
     await status_store(hass, entry).async_remove()
+    others = [
+        other
+        for other in hass.config_entries.async_entries(DOMAIN)
+        if other.entry_id != entry.entry_id
+    ]
+    if not others:
+        await async_unregister_card(hass)

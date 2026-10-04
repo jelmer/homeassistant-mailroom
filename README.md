@@ -83,6 +83,30 @@ For anything else, trigger on the entity yourself:
                 is out for delivery with
                 {{ trigger.to_state.attributes.carrier }}.
 
+## Dashboard card
+
+The integration comes with a card that lists the parcels of any of the
+sensors above:
+
+    type: custom:mailroom-parcels-card
+    entity: sensor.mailroom_in_transit
+    delivered_entity: sensor.mailroom_recently_delivered
+    title: Parcels
+    max_items: 10
+
+Only `entity` is required. `delivered_entity` adds a second list under
+the first, and `max_items` caps each list. Each row shows the status,
+carrier, due or delivery date and any collection details, and links to
+the carrier's tracking page. The card's text is in English only.
+
+The card is added to the dashboard resources when the integration is set
+up, and shows up in the card picker after a browser reload. If you keep
+your resources in YAML, add it yourself:
+
+    resources:
+      - url: /mailroom/mailroom-parcels-card.js
+        type: module
+
 ## Actions
 
 | Action | What |
