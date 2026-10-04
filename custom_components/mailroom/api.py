@@ -24,6 +24,10 @@ class MailroomConnectionError(MailroomError):
     """Raised when mailroom could not be reached."""
 
 
+class MailroomAuthError(MailroomError):
+    """Raised when whatever guards mailroom does not accept our credentials."""
+
+
 class MailroomResponseError(MailroomError):
     """Raised when the answer is not what mailroom's API promises."""
 
@@ -232,9 +236,25 @@ def _new_parcel(
 class MailroomClient:
     """Client for a mailroom instance."""
 
-    def __init__(self, session: aiohttp.ClientSession, url: str) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        username: str | None = None,
+        password: str | None = None,
+    ) -> None:
+        """Create a client.
+
+        mailroom has no authentication of its own. `username` and `password`
+        are for a reverse proxy in front of it that asks for HTTP basic auth.
+        """
         self._session = session
         self._base = URL(url)
+        self._headers = (
+            {}
+            if username is None
+            else {"Authorization": aiohttp.encode_basic_auth(username, password or "")}
+        )
 
     async def parcels(self) -> Parcels:
         """Fetch the parcels the dashboard lists."""
@@ -326,8 +346,16 @@ class MailroomClient:
         """Return the decoded body, or None where mailroom sends none."""
         try:
             async with self._session.request(
-                method, url, json=json, headers=headers, timeout=REQUEST_TIMEOUT
+                method,
+                url,
+                json=json,
+                headers={**self._headers, **(headers or {})},
+                timeout=REQUEST_TIMEOUT,
             ) as response:
+                if response.status in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                    raise MailroomAuthError(
+                        f"{url} refused the credentials (HTTP {response.status})"
+                    )
                 if response.status == HTTPStatus.NOT_FOUND:
                     raise MailroomNotFoundError(f"{url} was not found")
                 if response.status == HTTPStatus.PRECONDITION_FAILED:

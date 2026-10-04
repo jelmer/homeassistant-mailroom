@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from datetime import UTC, date, datetime
 from typing import Any
 
 import aiohttp
 import pytest
+from aiohttp import test_utils, web
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.mailroom.api import (
     DeliveryStatus,
+    MailroomAuthError,
     MailroomClient,
     MailroomConnectionError,
     MailroomNotFoundError,
@@ -284,3 +287,60 @@ async def test_adding_a_parcel_mailroom_refuses(
 
     with pytest.raises(MailroomResponseError, match="HTTP 400"):
         await client.add_parcel("TQ1")
+
+
+@pytest.mark.parametrize("status", [401, 403])
+async def test_refused_credentials_are_an_auth_error(
+    client: MailroomClient, aioclient_mock: AiohttpClientMocker, status: int
+) -> None:
+    aioclient_mock.get(f"{BASE_URL}/api/stats", status=status)
+
+    with pytest.raises(MailroomAuthError, match=f"HTTP {status}"):
+        await client.stats()
+
+
+@pytest.fixture
+async def guarded_mailroom(
+    socket_enabled: None,
+) -> AsyncGenerator[test_utils.TestServer]:
+    """A real server that only answers `someone` with the password `secret`."""
+
+    async def stats(request: web.Request) -> web.Response:
+        expected = aiohttp.encode_basic_auth("someone", "secret")
+        if request.headers.get("Authorization") != expected:
+            return web.Response(status=401, headers={"WWW-Authenticate": "Basic"})
+        return web.json_response(STATS)
+
+    app = web.Application()
+    app.router.add_get("/api/stats", stats)
+    server = test_utils.TestServer(app)
+    await server.start_server()
+    try:
+        yield server
+    finally:
+        await server.close()
+
+
+@pytest.mark.parametrize(
+    ("username", "password"),
+    [(None, None), ("someone", None), ("someone", "wrong"), ("other", "secret")],
+)
+async def test_basic_auth_is_needed_where_a_proxy_asks_for_it(
+    guarded_mailroom: test_utils.TestServer, username: str | None, password: str | None
+) -> None:
+    async with aiohttp.ClientSession() as session:
+        client = MailroomClient(
+            session, str(guarded_mailroom.make_url("")), username, password
+        )
+
+        with pytest.raises(MailroomAuthError):
+            await client.stats()
+
+
+async def test_basic_auth_is_sent(guarded_mailroom: test_utils.TestServer) -> None:
+    async with aiohttp.ClientSession() as session:
+        client = MailroomClient(
+            session, str(guarded_mailroom.make_url("")), "someone", "secret"
+        )
+
+        assert await client.stats() == Stats(total=40, delivered=37)

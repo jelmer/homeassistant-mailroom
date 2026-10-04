@@ -162,8 +162,11 @@ Include the base path if mailroom is mounted under one. If mailroom moves,
 
 Home Assistant has to be able to reach mailroom over HTTP, so a mailroom
 that only listens on a unix socket needs a reverse proxy in front of it.
-mailroom has no authentication of its own; if the proxy adds any, this
-integration cannot get past it at the moment.
+
+mailroom has no authentication of its own. If the proxy asks for HTTP
+basic auth, enter the username and password along with the URL; they are
+left empty otherwise. When they stop being accepted Home Assistant asks
+for new ones.
 
 The diagnostics download for the entry holds what the last poll fetched,
 with tracking numbers, tracking URLs, descriptions and merchants redacted.

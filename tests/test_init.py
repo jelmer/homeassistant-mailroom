@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import aiohttp
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import CONF_URL, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
@@ -47,3 +47,18 @@ async def test_setup_is_retried_while_mailroom_is_unreachable(
     assert not await hass.config_entries.async_setup(entry.entry_id)
 
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_setup_with_refused_credentials_asks_for_new_ones(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    aioclient_mock.get(f"{BASE_URL}/api/parcels", status=401)
+    aioclient_mock.get(f"{BASE_URL}/api/stats", status=401)
+    entry = MockConfigEntry(domain=DOMAIN, title="Mailroom", data={CONF_URL: BASE_URL})
+    entry.add_to_hass(hass)
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    [flow] = hass.config_entries.flow.async_progress()
+    assert flow["context"]["source"] == SOURCE_REAUTH

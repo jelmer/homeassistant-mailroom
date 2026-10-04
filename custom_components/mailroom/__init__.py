@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from homeassistant.const import CONF_URL, Platform
+from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -29,7 +29,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: MailroomConfigEntry) -> bool:
     """Set up mailroom from a config entry."""
-    client = MailroomClient(async_get_clientsession(hass), entry.data[CONF_URL])
+    client = MailroomClient(
+        async_get_clientsession(hass),
+        entry.data[CONF_URL],
+        entry.data.get(CONF_USERNAME),
+        entry.data.get(CONF_PASSWORD),
+    )
     coordinator = MailroomCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
 

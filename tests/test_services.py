@@ -53,6 +53,31 @@ async def test_add_parcel_asks_mailroom_not_to_replace_a_record(
     ] == [{"If-None-Match": "*"}]
 
 
+async def test_actions_use_the_credentials_of_the_entry(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    mock_api(aioclient_mock)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Mailroom",
+        data={CONF_URL: BASE_URL, "username": "someone", "password": "secret"},
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    aioclient_mock.delete(TQ1_URL, status=204)
+
+    await hass.services.async_call(
+        DOMAIN, "remove_parcel", {"tracking_number": "TQ1"}, blocking=True
+    )
+
+    # base64 of "someone:secret"
+    assert {
+        headers["Authorization"]
+        for _method, _url, _body, headers in aioclient_mock.mock_calls
+    } == {"Basic c29tZW9uZTpzZWNyZXQ="}
+
+
 async def test_add_parcel_reports_a_record_filed_in_the_meantime(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

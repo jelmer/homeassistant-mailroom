@@ -8,9 +8,10 @@ from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import MailroomClient, MailroomError, Parcels, Stats
+from .api import MailroomAuthError, MailroomClient, MailroomError, Parcels, Stats
 from .const import DOMAIN, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,6 +47,8 @@ class MailroomCoordinator(DataUpdateCoordinator[MailroomData]):
             parcels, stats = await asyncio.gather(
                 self.client.parcels(), self.client.stats()
             )
+        except MailroomAuthError as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
         except MailroomError as err:
             raise UpdateFailed(str(err)) from err
         return MailroomData(parcels=parcels, stats=stats)
