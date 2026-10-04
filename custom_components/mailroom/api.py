@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from http import HTTPStatus
 from typing import Any
@@ -25,6 +25,14 @@ class MailroomConnectionError(MailroomError):
 
 class MailroomResponseError(MailroomError):
     """Raised when the answer is not what mailroom's API promises."""
+
+
+class MailroomNotFoundError(MailroomResponseError):
+    """Raised when mailroom has nothing at the address asked for."""
+
+
+class MailroomParcelExistsError(MailroomError):
+    """Raised when adding a parcel mailroom already has a record for."""
 
 
 class DeliveryStatus(StrEnum):
@@ -88,6 +96,28 @@ class Stats:
     delivered: int
 
 
+@dataclass(frozen=True)
+class RefreshResult:
+    """What asking the carrier about a parcel came to."""
+
+    # mailroom's own word for it: `updated`, `unchanged`, `no_carrier`,
+    # `carrier_not_configured`, `postcode_required` or `no_record`.
+    outcome: str
+    # The record as it is on disk afterwards.
+    parcel: dict[str, Any]
+
+
+def is_valid_tracking_number(tracking_number: str) -> bool:
+    """Whether mailroom accepts this as a tracking number.
+
+    mailroom uses the tracking number as a file name, and only takes ASCII
+    letters, digits, `-` and `_`.
+    """
+    return tracking_number != "" and all(
+        char.isascii() and (char.isalnum() or char in "-_") for char in tracking_number
+    )
+
+
 def _optional[T](parse: Callable[[str], T], raw: str | None) -> T | None:
     return None if raw is None else parse(raw)
 
@@ -121,8 +151,45 @@ def _parse_stats(raw: dict[str, Any]) -> Stats:
     )
 
 
+def _parse_refresh(raw: dict[str, Any]) -> RefreshResult:
+    outcome, parcel = raw["outcome"], raw["parcel"]
+    if not isinstance(outcome, str) or not isinstance(parcel, dict):
+        raise TypeError(f"unexpected refresh result {raw!r}")
+    return RefreshResult(outcome=outcome, parcel=parcel)
+
+
+def _new_parcel(
+    tracking_number: str,
+    carrier: str | None,
+    description: str | None,
+    postcode: str | None,
+    now: datetime,
+) -> dict[str, Any]:
+    """Build the record mailroom's own add-a-parcel form would."""
+    document: dict[str, Any] = {
+        "@type": "ParcelDelivery",
+        "trackingNumber": tracking_number,
+        "receivedAt": now.isoformat(),
+        "deliveryStatus": "OnItsWay",
+        "history": [
+            {
+                "seen_at": now.isoformat(),
+                "source": "home-assistant",
+                "deliveryStatus": "OnItsWay",
+            }
+        ],
+    }
+    if carrier is not None:
+        document["provider"] = {"@id": carrier}
+    if description is not None:
+        document["description"] = description
+    if postcode is not None:
+        document["deliveryPostalCode"] = postcode
+    return document
+
+
 class MailroomClient:
-    """Read-only client for a mailroom instance."""
+    """Client for a mailroom instance."""
 
     def __init__(self, session: aiohttp.ClientSession, url: str) -> None:
         self._session = session
@@ -130,30 +197,90 @@ class MailroomClient:
 
     async def parcels(self) -> Parcels:
         """Fetch the parcels the dashboard lists."""
-        return await self._get(_parse_parcels, "api", "parcels")
+        url = self._base.joinpath("api", "parcels")
+        return await self._fetch("GET", url, _parse_parcels)
 
     async def stats(self) -> Stats:
         """Fetch the aggregate statistics."""
-        return await self._get(_parse_stats, "api", "stats")
+        url = self._base.joinpath("api", "stats")
+        return await self._fetch("GET", url, _parse_stats)
 
-    async def _get[T](self, parse: Callable[[Any], T], *path: str) -> T:
-        url = self._base.joinpath(*path)
+    async def add_parcel(
+        self,
+        tracking_number: str,
+        *,
+        carrier: str | None = None,
+        description: str | None = None,
+        postcode: str | None = None,
+    ) -> None:
+        """File a new parcel, on its way.
+
+        `carrier` is the id mailroom knows the carrier by, such as `dhl`.
+        Raises MailroomParcelExistsError rather than replace a record.
+        """
+        url = self._parcel_url(tracking_number)
+        # mailroom's PUT replaces a record wholesale, history included.
+        if await self._exists(url):
+            raise MailroomParcelExistsError(
+                f"mailroom already has a parcel {tracking_number}"
+            )
+        document = _new_parcel(
+            tracking_number, carrier, description, postcode, datetime.now(UTC)
+        )
+        await self._request("PUT", url, json=document)
+
+    async def remove_parcel(self, tracking_number: str) -> None:
+        """Delete a parcel's record. Raises MailroomNotFoundError if absent."""
+        await self._request("DELETE", self._parcel_url(tracking_number))
+
+    async def refresh_parcel(self, tracking_number: str) -> RefreshResult:
+        """Have mailroom ask the carrier about a parcel now.
+
+        Raises MailroomNotFoundError if mailroom has no such parcel.
+        """
+        url = self._parcel_url(tracking_number) / "refresh"
+        return await self._fetch("POST", url, _parse_refresh)
+
+    def _parcel_url(self, tracking_number: str) -> URL:
+        # Anything else could name a different endpoint, e.g. `..`.
+        if not is_valid_tracking_number(tracking_number):
+            raise ValueError(f"invalid tracking number {tracking_number!r}")
+        return self._base.joinpath("api", "parcel", tracking_number)
+
+    async def _exists(self, url: URL) -> bool:
         try:
-            async with self._session.get(url, timeout=REQUEST_TIMEOUT) as response:
-                if response.status != HTTPStatus.OK:
-                    raise MailroomResponseError(
-                        f"{url} returned HTTP {response.status}"
-                    )
-                body = await response.json()
-        except aiohttp.ClientResponseError as err:
-            raise MailroomResponseError(f"{url} did not return JSON: {err}") from err
-        except (aiohttp.ClientError, TimeoutError) as err:
-            raise MailroomConnectionError(f"Unable to reach {url}: {err}") from err
-        except ValueError as err:
-            raise MailroomResponseError(f"{url} returned invalid JSON: {err}") from err
+            await self._request("GET", url)
+        except MailroomNotFoundError:
+            return False
+        return True
+
+    async def _fetch[T](self, method: str, url: URL, parse: Callable[[Any], T]) -> T:
+        body = await self._request(method, url)
         try:
             return parse(body)
         except (KeyError, TypeError, ValueError) as err:
             raise MailroomResponseError(
                 f"{url} returned an unexpected document: {err!r}"
             ) from err
+
+    async def _request(self, method: str, url: URL, json: Any = None) -> Any:
+        """Return the decoded body, or None where mailroom sends none."""
+        try:
+            async with self._session.request(
+                method, url, json=json, timeout=REQUEST_TIMEOUT
+            ) as response:
+                if response.status == HTTPStatus.NOT_FOUND:
+                    raise MailroomNotFoundError(f"{url} was not found")
+                if response.status == HTTPStatus.NO_CONTENT:
+                    return None
+                if response.status not in (HTTPStatus.OK, HTTPStatus.CREATED):
+                    raise MailroomResponseError(
+                        f"{url} returned HTTP {response.status}"
+                    )
+                return await response.json()
+        except aiohttp.ClientResponseError as err:
+            raise MailroomResponseError(f"{url} did not return JSON: {err}") from err
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise MailroomConnectionError(f"Unable to reach {url}: {err}") from err
+        except ValueError as err:
+            raise MailroomResponseError(f"{url} returned invalid JSON: {err}") from err

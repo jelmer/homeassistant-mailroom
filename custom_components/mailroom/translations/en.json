@@ -68,5 +68,61 @@
         "name": "Total parcels"
       }
     }
+  },
+  "services": {
+    "add_parcel": {
+      "name": "Add parcel",
+      "description": "Files a new parcel in mailroom, on its way. Fails if mailroom already has a parcel with that tracking number.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Mailroom instance",
+          "description": "The mailroom to use. Only needed when more than one is set up."
+        },
+        "tracking_number": {
+          "name": "Tracking number",
+          "description": "The tracking number of the parcel. Letters, digits, '-' and '_' only."
+        },
+        "carrier": {
+          "name": "Carrier",
+          "description": "The id mailroom knows the carrier by, such as dhl, dpd, postnl, royal-mail or ups. Without one mailroom cannot poll the parcel."
+        },
+        "description": {
+          "name": "Description",
+          "description": "What is in the parcel."
+        },
+        "postcode": {
+          "name": "Postcode",
+          "description": "The delivery postcode. DPD and PostNL need it to look a parcel up."
+        }
+      }
+    },
+    "refresh_parcel": {
+      "name": "Refresh parcel",
+      "description": "Has mailroom ask the carrier about a parcel now rather than at its next polling round. Returns mailroom's outcome and the parcel's record.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Mailroom instance",
+          "description": "The mailroom to use. Only needed when more than one is set up."
+        },
+        "tracking_number": {
+          "name": "Tracking number",
+          "description": "The tracking number of the parcel to refresh."
+        }
+      }
+    },
+    "remove_parcel": {
+      "name": "Remove parcel",
+      "description": "Deletes a parcel's record from mailroom, including its history.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Mailroom instance",
+          "description": "The mailroom to use. Only needed when more than one is set up."
+        },
+        "tracking_number": {
+          "name": "Tracking number",
+          "description": "The tracking number of the parcel to remove."
+        }
+      }
+    }
   }
 }

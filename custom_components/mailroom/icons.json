@@ -28,5 +28,16 @@
         "default": "mdi:package-variant-closed"
       }
     }
+  },
+  "services": {
+    "add_parcel": {
+      "service": "mdi:package-variant-closed-plus"
+    },
+    "refresh_parcel": {
+      "service": "mdi:refresh"
+    },
+    "remove_parcel": {
+      "service": "mdi:package-variant-closed-remove"
+    }
   }
 }

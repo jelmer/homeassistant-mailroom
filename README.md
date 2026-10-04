@@ -7,8 +7,7 @@ carrier-tracking poller built on top of
 
 It reads mailroom's JSON API every five minutes and exposes what the
 dashboard shows as sensors, plus an event entity that fires when a parcel
-changes status. It is read-only: adding, removing and refreshing parcels
-still happens in mailroom itself.
+changes status. Actions add, refresh and remove parcels.
 
 ## Entities
 
@@ -64,6 +63,33 @@ it has started, which can be up to five minutes later.
                    or trigger.to_state.attributes.tracking_number }}
                 is out for delivery with
                 {{ trigger.to_state.attributes.carrier }}.
+
+## Actions
+
+| Action | What |
+| --- | --- |
+| `mailroom.add_parcel` | File a new parcel, on its way |
+| `mailroom.refresh_parcel` | Have mailroom poll the carrier for a parcel now |
+| `mailroom.remove_parcel` | Delete a parcel's record, history included |
+
+All three take a `tracking_number`, and a `config_entry_id` that is only
+needed when more than one mailroom is set up.
+
+`add_parcel` also takes an optional `carrier`, `description` and
+`postcode`. The carrier is the id mailroom knows it by, such as `dhl`,
+`dpd`, `postnl`, `royal-mail` or `ups`; a parcel without one is not polled.
+DPD and PostNL need the postcode to look a parcel up. Adding a tracking
+number mailroom already has is refused rather than replacing the record.
+
+`refresh_parcel` returns mailroom's `outcome` (`updated`, `unchanged`,
+`no_record`, `no_carrier`, `carrier_not_configured` or `postcode_required`)
+and the parcel's record as it is afterwards:
+
+    actions:
+      - action: mailroom.refresh_parcel
+        data:
+          tracking_number: JD014600006281234567
+        response_variable: refreshed
 
 ## Installation
 

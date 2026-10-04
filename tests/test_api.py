@@ -15,9 +15,11 @@ from custom_components.mailroom.api import (
     DeliveryStatus,
     MailroomClient,
     MailroomConnectionError,
+    MailroomNotFoundError,
     MailroomResponseError,
     Parcel,
     Parcels,
+    RefreshResult,
     Stats,
 )
 
@@ -176,3 +178,64 @@ async def test_failing_to_connect_is_a_connection_error(
 
     with pytest.raises(MailroomConnectionError):
         await client.parcels()
+
+
+@pytest.mark.parametrize(
+    "tracking_number", ["", "..", "TQ1/refresh", "TQ 1", "TQ\u00e9"]
+)
+async def test_an_invalid_tracking_number_is_refused_before_any_request(
+    client: MailroomClient, aioclient_mock: AiohttpClientMocker, tracking_number: str
+) -> None:
+    with pytest.raises(ValueError):
+        await client.add_parcel(tracking_number)
+    with pytest.raises(ValueError):
+        await client.remove_parcel(tracking_number)
+    with pytest.raises(ValueError):
+        await client.refresh_parcel(tracking_number)
+
+    assert aioclient_mock.mock_calls == []
+
+
+async def test_refresh_parcel(
+    client: MailroomClient, aioclient_mock: AiohttpClientMocker
+) -> None:
+    record = {"trackingNumber": "TQ-1_a", "deliveryStatus": "Delivered"}
+    aioclient_mock.post(
+        f"{BASE_URL}/api/parcel/TQ-1_a/refresh",
+        json={"outcome": "unchanged", "parcel": record},
+    )
+
+    assert await client.refresh_parcel("TQ-1_a") == RefreshResult(
+        outcome="unchanged", parcel=record
+    )
+
+
+@pytest.mark.parametrize(
+    "document", [{"outcome": "updated"}, {"outcome": 1, "parcel": {}}, []]
+)
+async def test_an_unexpected_refresh_result_is_an_error(
+    client: MailroomClient, aioclient_mock: AiohttpClientMocker, document: Any
+) -> None:
+    aioclient_mock.post(f"{BASE_URL}/api/parcel/TQ1/refresh", json=document)
+
+    with pytest.raises(MailroomResponseError):
+        await client.refresh_parcel("TQ1")
+
+
+async def test_removing_a_parcel_mailroom_does_not_have(
+    client: MailroomClient, aioclient_mock: AiohttpClientMocker
+) -> None:
+    aioclient_mock.delete(f"{BASE_URL}/api/parcel/TQ1", status=404)
+
+    with pytest.raises(MailroomNotFoundError):
+        await client.remove_parcel("TQ1")
+
+
+async def test_adding_a_parcel_mailroom_refuses(
+    client: MailroomClient, aioclient_mock: AiohttpClientMocker
+) -> None:
+    aioclient_mock.get(f"{BASE_URL}/api/parcel/TQ1", status=404)
+    aioclient_mock.put(f"{BASE_URL}/api/parcel/TQ1", status=400)
+
+    with pytest.raises(MailroomResponseError, match="HTTP 400"):
+        await client.add_parcel("TQ1")

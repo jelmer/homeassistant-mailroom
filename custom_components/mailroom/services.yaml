@@ -1,0 +1,47 @@
+add_parcel:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: mailroom
+    tracking_number:
+      required: true
+      example: "JD014600006281234567"
+      selector:
+        text:
+    carrier:
+      example: dhl
+      selector:
+        text:
+    description:
+      example: Bicycle bell
+      selector:
+        text:
+    postcode:
+      example: CB1 2AB
+      selector:
+        text:
+
+refresh_parcel:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: mailroom
+    tracking_number:
+      required: true
+      example: "JD014600006281234567"
+      selector:
+        text:
+
+remove_parcel:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: mailroom
+    tracking_number:
+      required: true
+      example: "JD014600006281234567"
+      selector:
+        text:
