@@ -90,6 +90,14 @@ PARCEL_LIST_SENSORS = (
         key="unknown",
         parcels_fn=_with_status(DeliveryStatus.UNKNOWN),
     ),
+    ParcelListSensorDescription(
+        key="recently_delivered",
+        parcels_fn=lambda parcels: [
+            parcel
+            for parcel in parcels.previous
+            if parcel.status is DeliveryStatus.DELIVERED
+        ],
+    ),
 )
 
 STATS_SENSORS = (

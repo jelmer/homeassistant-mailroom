@@ -24,6 +24,9 @@
       "unknown": {
         "default": "mdi:help-circle-outline"
       },
+      "recently_delivered": {
+        "default": "mdi:package-down"
+      },
       "delivered": {
         "default": "mdi:package-variant-closed-check"
       },

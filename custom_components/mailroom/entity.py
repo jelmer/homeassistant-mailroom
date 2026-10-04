@@ -47,4 +47,7 @@ def parcel_attributes(parcel: Parcel) -> dict[str, Any]:
             else parcel.expected_arrival.isoformat()
         ),
         "overdue": parcel.overdue,
+        "delivered_at": (
+            None if parcel.delivered_at is None else parcel.delivered_at.isoformat()
+        ),
     }

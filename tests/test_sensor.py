@@ -22,6 +22,7 @@ JD2 = {
     "tracking_url": "https://www.dhl.com/en/express/tracking.html?AWB=JD2",
     "expected_arrival": "2026-10-03",
     "overdue": True,
+    "delivered_at": None,
 }
 TQ1 = {
     "tracking_number": "TQ1",
@@ -32,6 +33,18 @@ TQ1 = {
     "tracking_url": None,
     "expected_arrival": "2026-10-04",
     "overdue": False,
+    "delivered_at": None,
+}
+S3 = {
+    "tracking_number": "3S3",
+    "status": "delivered",
+    "carrier": "PostNL",
+    "description": "Stroopwafels",
+    "merchant": None,
+    "tracking_url": None,
+    "expected_arrival": None,
+    "overdue": False,
+    "delivered_at": "2026-10-04T14:28:56+00:00",
 }
 
 
@@ -49,6 +62,7 @@ def the_day_tq1_is_due(freezer: FrozenDateTimeFactory) -> None:
         ("sensor.mailroom_overdue", "1", [JD2]),
         ("sensor.mailroom_problem", "0", []),
         ("sensor.mailroom_status_unknown", "0", []),
+        ("sensor.mailroom_recently_delivered", "1", [S3]),
     ],
 )
 async def test_parcel_list_sensors(
@@ -166,6 +180,28 @@ async def test_a_parcel_of_unknown_status_only_counts_as_that(
         "problem": "0",
         "status_unknown": "1",
     }
+
+
+async def test_recently_delivered_leaves_out_returned_parcels(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    tick: Callable[[], Awaitable[None]],
+    config_entry: MockConfigEntry,
+) -> None:
+    mock_api(
+        aioclient_mock,
+        {
+            "current": [],
+            "previous": [parcel_json("BACK2", "Returned"), *PARCELS["previous"]],
+        },
+    )
+
+    await tick()
+
+    state = hass.states.get("sensor.mailroom_recently_delivered")
+    assert state is not None
+    assert state.state == "1"
+    assert state.attributes["parcels"] == [S3]
 
 
 async def test_sensors_follow_mailroom(

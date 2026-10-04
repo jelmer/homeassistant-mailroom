@@ -64,6 +64,9 @@
       "unknown": {
         "name": "Status unknown"
       },
+      "recently_delivered": {
+        "name": "Recently delivered"
+      },
       "delivered": {
         "name": "Delivered"
       },

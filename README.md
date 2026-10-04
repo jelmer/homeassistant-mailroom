@@ -19,14 +19,15 @@ changes status. Actions add, refresh and remove parcels.
 | Overdue | Parcels in transit whose expected arrival date has passed |
 | Problem | Parcels in transit that the carrier reports a problem with |
 | Status unknown | Parcels mailroom has no trustworthy status for |
+| Recently delivered | Delivered parcels mailroom still lists, 90 days by default |
 | Delivered | Delivered parcels, over every record mailroom has |
 | Total parcels | Every record mailroom has |
 | Parcel update | Event entity; fires when a parcel appears or changes status |
 
-The first six sensors list the parcels they count in a `parcels`
+The first seven sensors list the parcels they count in a `parcels`
 attribute, each with its tracking number, status, carrier, description,
-merchant, tracking URL and expected arrival date. That attribute is kept
-out of the recorder.
+merchant, tracking URL, expected arrival date and delivery time. That
+attribute is kept out of the recorder.
 
 mailroom shows a parcel as `Unknown` once it has gone a long time without
 news, and such a parcel never leaves its "in transit" list. Here those are
